@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QTableWidget,
                               QStatusBar, QHeaderView, QDialog, QLineEdit,
                               QDialogButtonBox, QFormLayout, QMenu)
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
-from PySide6.QtGui import QColor, QFont, QIcon
+from PySide6.QtGui import QColor, QFont, QIcon, QPalette
 
 # Parse command line arguments
 def parse_arguments():
@@ -364,30 +364,46 @@ class IPAddressDialog(QDialog):
     def __init__(self, parent=None, current_ip="0.0.0.0"):
         super().__init__(parent)
         self.setWindowTitle("Set IP Address")
-        self.resize(300, 150)
+        self.resize(350, 200)
         
         # Create layout
         layout = QFormLayout(self)
+        layout.setSpacing(10)
+        layout.setContentsMargins(20, 20, 20, 20)
+        
+        # Title label
+        title_label = QLabel("Configure Network Settings")
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #2a82da; margin-bottom: 10px;")
+        layout.addRow(title_label)
         
         # IP address input
         self.ip_input = QLineEdit(current_ip)
         self.ip_input.setPlaceholderText("Enter IP address (e.g., 192.168.1.100)")
+        self.ip_input.setMinimumHeight(28)
         layout.addRow("IP Address:", self.ip_input)
         
         # Subnet mask input
         self.subnet_input = QLineEdit("255.255.255.0")
         self.subnet_input.setPlaceholderText("Enter subnet mask (e.g., 255.255.255.0)")
+        self.subnet_input.setMinimumHeight(28)
         layout.addRow("Subnet Mask:", self.subnet_input)
         
         # Gateway input
         self.gateway_input = QLineEdit()
         self.gateway_input.setPlaceholderText("Enter gateway (e.g., 192.168.1.1)")
+        self.gateway_input.setMinimumHeight(28)
         layout.addRow("Gateway:", self.gateway_input)
         
         # Buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
+        
+        # Style the buttons
+        for button in button_box.buttons():
+            button.setMinimumHeight(30)
+            button.setMinimumWidth(100)
+            
         layout.addRow(button_box)
     
     def get_ip_address(self):
@@ -408,7 +424,8 @@ class NetworkScannerApp(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("LLDP Network Scanner")
-        self.resize(800, 600)
+        self.resize(900, 700)
+        self.setMinimumSize(800, 600)
         
         # Create UI
         self.setup_ui()
@@ -431,33 +448,48 @@ class NetworkScannerApp(QMainWindow):
         if TEST_MODE:
             self.setWindowTitle(f"LLDP Network Scanner - TEST MODE ({TEST_DEVICES_COUNT} devices)")
             self.log_message(f"Running in TEST MODE with {TEST_DEVICES_COUNT} simulated devices")
+            # Set window icon if available
+            try:
+                self.setWindowIcon(QIcon("icon.png"))
+            except:
+                pass
     
     def setup_ui(self):
         """Set up the user interface"""
         # Main widget and layout
         main_widget = QWidget()
         main_layout = QVBoxLayout(main_widget)
+        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(15, 15, 15, 15)
         
         # Header
         header_layout = QHBoxLayout()
         title_label = QLabel("LLDP Network Scanner")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 22px; font-weight: bold; color: #2a82da;")
         header_layout.addWidget(title_label)
         
         # Test mode indicator
         if TEST_MODE:
             test_label = QLabel("TEST MODE")
-            test_label.setStyleSheet("font-size: 14px; color: red; font-weight: bold;")
+            test_label.setStyleSheet("font-size: 14px; color: #ff5555; font-weight: bold;")
             header_layout.addWidget(test_label)
             
         header_layout.addStretch()
         
         # Control buttons
         button_layout = QHBoxLayout()
+        button_layout.setSpacing(10)
+        
         self.scan_button = QPushButton("Stop Scanning")
+        self.scan_button.setMinimumWidth(120)
+        self.scan_button.setMinimumHeight(30)
         self.scan_button.clicked.connect(self.toggle_scanning)
+        
         self.refresh_button = QPushButton("Refresh")
+        self.refresh_button.setMinimumWidth(120)
+        self.refresh_button.setMinimumHeight(30)
         self.refresh_button.clicked.connect(self.refresh_device_list)
+        
         button_layout.addWidget(self.scan_button)
         button_layout.addWidget(self.refresh_button)
         button_layout.addStretch()
@@ -467,6 +499,19 @@ class NetworkScannerApp(QMainWindow):
         self.device_table.setHorizontalHeaderLabels([
             "MAC Address", "IP Address", "Hostname", "Status", "Last Seen"
         ])
+        self.device_table.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QHeaderView::section {
+                background-color: #2a2a2a;
+                padding: 6px;
+                border: 1px solid #3a3a3a;
+                font-weight: bold;
+            }
+        """)
         
         # Set column widths
         header = self.device_table.horizontalHeader()
@@ -480,25 +525,50 @@ class NetworkScannerApp(QMainWindow):
         self.device_table.setAlternatingRowColors(True)
         self.device_table.setContextMenuPolicy(Qt.CustomContextMenu)
         self.device_table.customContextMenuRequested.connect(self.show_context_menu)
+        self.device_table.setMinimumHeight(300)
         
         # Log area
+        log_label = QLabel("Log Messages:")
+        log_label.setStyleSheet("font-weight: bold; margin-top: 10px;")
+        
         self.log_area = QTableWidget(0, 2)
         self.log_area.setHorizontalHeaderLabels(["Time", "Message"])
         self.log_area.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self.log_area.horizontalHeader().setSectionResizeMode(1, QHeaderView.Stretch)
         self.log_area.setMaximumHeight(150)
+        self.log_area.setStyleSheet("""
+            QTableWidget {
+                border: 1px solid #3a3a3a;
+                border-radius: 4px;
+                padding: 2px;
+            }
+            QHeaderView::section {
+                background-color: #2a2a2a;
+                padding: 4px;
+                border: 1px solid #3a3a3a;
+                font-weight: bold;
+            }
+        """)
         
         # Status bar
         self.statusBar = QStatusBar()
+        self.statusBar.setStyleSheet("""
+            QStatusBar {
+                background-color: #2a2a2a;
+                color: white;
+                border-top: 1px solid #3a3a3a;
+            }
+        """)
         self.setStatusBar(self.statusBar)
         self.status_label = QLabel("Ready")
+        self.status_label.setStyleSheet("padding: 3px; font-weight: bold;")
         self.statusBar.addWidget(self.status_label)
         
         # Add widgets to main layout
         main_layout.addLayout(header_layout)
         main_layout.addLayout(button_layout)
         main_layout.addWidget(self.device_table)
-        main_layout.addWidget(QLabel("Log Messages:"))
+        main_layout.addWidget(log_label)
         main_layout.addWidget(self.log_area)
         
         self.setCentralWidget(main_widget)
@@ -545,9 +615,11 @@ class NetworkScannerApp(QMainWindow):
         
         # Color code error messages
         if "error" in message.lower():
-            msg_item.setForeground(QColor(255, 0, 0))  # Red for errors
+            msg_item.setForeground(QColor(255, 100, 100))  # Bright red for errors
         elif "test mode" in message.lower():
-            msg_item.setForeground(QColor(0, 0, 255))  # Blue for test mode messages
+            msg_item.setForeground(QColor(100, 150, 255))  # Bright blue for test mode messages
+        elif "new device" in message.lower():
+            msg_item.setForeground(QColor(100, 255, 100))  # Bright green for new devices
         
         self.log_area.setItem(row, 1, msg_item)
         
@@ -573,9 +645,11 @@ class NetworkScannerApp(QMainWindow):
                 for col in range(5):
                     item = self.device_table.item(row, col)
                     if device_info['status'] == STATUS_ACTIVE:
-                        item.setBackground(QColor(200, 255, 200))  # Light green
+                        item.setBackground(QColor(0, 100, 0))  # Dark green
+                        item.setForeground(QColor(200, 255, 200))  # Light green text
                     else:
-                        item.setBackground(QColor(255, 200, 200))  # Light red
+                        item.setBackground(QColor(100, 0, 0))  # Dark red
+                        item.setForeground(QColor(255, 200, 200))  # Light red text
                         
                 return
         
@@ -598,9 +672,11 @@ class NetworkScannerApp(QMainWindow):
             
             # Set background color based on status
             if device_info['status'] == STATUS_ACTIVE:
-                item.setBackground(QColor(200, 255, 200))  # Light green
+                item.setBackground(QColor(0, 100, 0))  # Dark green
+                item.setForeground(QColor(200, 255, 200))  # Light green text
             else:
-                item.setBackground(QColor(255, 200, 200))  # Light red
+                item.setBackground(QColor(100, 0, 0))  # Dark red
+                item.setForeground(QColor(255, 200, 200))  # Light red text
         
         # Add items to table
         self.device_table.setItem(row, 0, mac_item)
@@ -711,12 +787,109 @@ class NetworkScannerApp(QMainWindow):
         event.accept()
 
 
+def set_dark_theme(app):
+    """Set a modern dark theme for the application"""
+    # Set Fusion style as base
+    app.setStyle('Fusion')
+    
+    # Create a dark palette
+    dark_palette = QPalette()
+    
+    # Set colors
+    dark_color = QColor(45, 45, 45)
+    disabled_color = QColor(70, 70, 70)
+    text_color = QColor(255, 255, 255)
+    highlight_color = QColor(42, 130, 218)
+    
+    # Set color groups
+    dark_palette.setColor(QPalette.Window, dark_color)
+    dark_palette.setColor(QPalette.WindowText, text_color)
+    dark_palette.setColor(QPalette.Base, QColor(25, 25, 25))
+    dark_palette.setColor(QPalette.AlternateBase, dark_color)
+    dark_palette.setColor(QPalette.ToolTipBase, text_color)
+    dark_palette.setColor(QPalette.ToolTipText, text_color)
+    dark_palette.setColor(QPalette.Text, text_color)
+    dark_palette.setColor(QPalette.Disabled, QPalette.Text, QColor(150, 150, 150))
+    dark_palette.setColor(QPalette.Button, dark_color)
+    dark_palette.setColor(QPalette.ButtonText, text_color)
+    dark_palette.setColor(QPalette.Disabled, QPalette.ButtonText, QColor(150, 150, 150))
+    dark_palette.setColor(QPalette.BrightText, Qt.red)
+    dark_palette.setColor(QPalette.Link, highlight_color)
+    dark_palette.setColor(QPalette.Highlight, highlight_color)
+    dark_palette.setColor(QPalette.HighlightedText, Qt.black)
+    dark_palette.setColor(QPalette.Disabled, QPalette.Highlight, disabled_color)
+    
+    # Apply the palette
+    app.setPalette(dark_palette)
+    
+    # Set stylesheet for additional customization
+    app.setStyleSheet("""
+        QToolTip { 
+            color: #ffffff; 
+            background-color: #2a82da; 
+            border: 1px solid white; 
+        }
+        
+        QTableWidget {
+            gridline-color: #353535;
+            background-color: #1e1e1e;
+            border: 1px solid #353535;
+            border-radius: 2px;
+            selection-background-color: #2a82da;
+        }
+        
+        QTableWidget::item {
+            padding: 4px;
+            border-bottom: 1px solid #353535;
+        }
+        
+        QHeaderView::section {
+            background-color: #353535;
+            padding: 4px;
+            border: 1px solid #5c5c5c;
+            color: white;
+        }
+        
+        QPushButton {
+            background-color: #353535;
+            color: white;
+            border: 1px solid #5c5c5c;
+            padding: 5px;
+            border-radius: 2px;
+        }
+        
+        QPushButton:hover {
+            background-color: #5c5c5c;
+        }
+        
+        QPushButton:pressed {
+            background-color: #2a82da;
+        }
+        
+        QLineEdit {
+            background-color: #1e1e1e;
+            color: white;
+            border: 1px solid #353535;
+            padding: 3px;
+            border-radius: 2px;
+        }
+        
+        QDialog {
+            background-color: #2d2d2d;
+        }
+        
+        QLabel {
+            color: white;
+        }
+    """)
+
+
 if __name__ == "__main__":
     # Start the application
     app = QApplication(sys.argv)
     
-    # Set application style
-    app.setStyle('Fusion')
+    # Set application style to modern dark theme
+    set_dark_theme(app)
     
     # Create and show the main window
     window = NetworkScannerApp()
