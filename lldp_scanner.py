@@ -12,7 +12,8 @@ import struct
 from PySide6.QtWidgets import (QApplication, QMainWindow, QTableWidget, 
                               QTableWidgetItem, QVBoxLayout, QWidget, 
                               QPushButton, QHBoxLayout, QLabel, QMessageBox,
-                              QStatusBar, QHeaderView)
+                              QStatusBar, QHeaderView, QDialog, QLineEdit,
+                              QDialogButtonBox, QFormLayout, QMenu)
 from PySide6.QtCore import Qt, QTimer, Signal, QObject
 from PySide6.QtGui import QColor, QFont, QIcon
 
@@ -358,6 +359,50 @@ class LLDPScanner(QObject):
             return self.devices.copy()
 
 
+class IPAddressDialog(QDialog):
+    """Dialog for entering an IP address"""
+    def __init__(self, parent=None, current_ip="0.0.0.0"):
+        super().__init__(parent)
+        self.setWindowTitle("Set IP Address")
+        self.resize(300, 150)
+        
+        # Create layout
+        layout = QFormLayout(self)
+        
+        # IP address input
+        self.ip_input = QLineEdit(current_ip)
+        self.ip_input.setPlaceholderText("Enter IP address (e.g., 192.168.1.100)")
+        layout.addRow("IP Address:", self.ip_input)
+        
+        # Subnet mask input
+        self.subnet_input = QLineEdit("255.255.255.0")
+        self.subnet_input.setPlaceholderText("Enter subnet mask (e.g., 255.255.255.0)")
+        layout.addRow("Subnet Mask:", self.subnet_input)
+        
+        # Gateway input
+        self.gateway_input = QLineEdit()
+        self.gateway_input.setPlaceholderText("Enter gateway (e.g., 192.168.1.1)")
+        layout.addRow("Gateway:", self.gateway_input)
+        
+        # Buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel)
+        button_box.accepted.connect(self.accept)
+        button_box.rejected.connect(self.reject)
+        layout.addRow(button_box)
+    
+    def get_ip_address(self):
+        """Get the entered IP address"""
+        return self.ip_input.text()
+    
+    def get_subnet_mask(self):
+        """Get the entered subnet mask"""
+        return self.subnet_input.text()
+    
+    def get_gateway(self):
+        """Get the entered gateway"""
+        return self.gateway_input.text()
+
+
 class NetworkScannerApp(QMainWindow):
     """Main application window"""
     def __init__(self):
@@ -433,6 +478,8 @@ class NetworkScannerApp(QMainWindow):
         
         self.device_table.setSelectionBehavior(QTableWidget.SelectRows)
         self.device_table.setAlternatingRowColors(True)
+        self.device_table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.device_table.customContextMenuRequested.connect(self.show_context_menu)
         
         # Log area
         self.log_area = QTableWidget(0, 2)
@@ -575,6 +622,88 @@ class NetworkScannerApp(QMainWindow):
         # Refresh all devices in the table
         for device_info in devices.values():
             self.update_device_list(device_info)
+    
+    def show_context_menu(self, position):
+        """Show context menu for the device table"""
+        # Get the row under the cursor
+        row = self.device_table.rowAt(position.y())
+        if row < 0:
+            return
+            
+        # Select the row
+        self.device_table.selectRow(row)
+        
+        # Create context menu
+        context_menu = QMenu(self)
+        set_ip_action = context_menu.addAction("Set IP Address")
+        
+        # Show context menu at cursor position
+        action = context_menu.exec_(self.device_table.mapToGlobal(position))
+        
+        if action == set_ip_action:
+            # Get device info
+            mac_address = self.device_table.item(row, 0).text()
+            current_ip = self.device_table.item(row, 1).text()
+            hostname = self.device_table.item(row, 2).text()
+            
+            # Show IP address dialog
+            self.show_ip_dialog(mac_address, current_ip, hostname)
+    
+    def show_ip_dialog(self, mac_address, current_ip, hostname):
+        """Show dialog for setting IP address"""
+        dialog = IPAddressDialog(self, current_ip)
+        if dialog.exec_():
+            new_ip = dialog.get_ip_address()
+            subnet_mask = dialog.get_subnet_mask()
+            gateway = dialog.get_gateway()
+            
+            # Send DCP set request
+            success = self.send_dcp_set_request(mac_address, new_ip, subnet_mask, gateway)
+            
+            if success:
+                self.log_message(f"Set IP address for {hostname} ({mac_address}) to {new_ip}")
+                
+                # Update device in table
+                for row in range(self.device_table.rowCount()):
+                    if self.device_table.item(row, 0).text() == mac_address:
+                        self.device_table.item(row, 1).setText(new_ip)
+                        break
+            else:
+                self.log_message(f"Failed to set IP address for {hostname} ({mac_address})")
+    
+    def send_dcp_set_request(self, mac_address, ip_address, subnet_mask, gateway):
+        """Send DCP set request to set IP address"""
+        try:
+            # In test mode, just simulate success
+            if TEST_MODE:
+                # Update the device in the scanner's device list
+                with self.scanner.lock:
+                    if mac_address in self.scanner.devices:
+                        self.scanner.devices[mac_address]['ip_address'] = ip_address
+                
+                self.log_message(f"TEST MODE: Simulated DCP set request for {mac_address} to {ip_address}")
+                return True
+            
+            # In real mode, we would send a DCP set request
+            # This would typically involve using a library like scapy to send the request
+            # For now, we'll just log that we would send the request
+            self.log_message(f"Would send DCP set request for {mac_address} to {ip_address}")
+            self.log_message("DCP set request implementation not available in this version")
+            
+            # Here's where you would implement the actual DCP set request
+            # Example (pseudo-code):
+            # if SCAPY_AVAILABLE:
+            #     # Create DCP set request packet
+            #     packet = Ether(dst=mac_address) / DCP(...)
+            #     # Send packet
+            #     sendp(packet, iface=self.scanner.interfaces[0])
+            #     return True
+            
+            return False
+            
+        except Exception as e:
+            self.log_message(f"Error sending DCP set request: {e}")
+            return False
     
     def closeEvent(self, event):
         """Handle window close event"""
